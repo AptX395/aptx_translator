@@ -9,3 +9,4 @@ edition = "2021"
 translation_api = { path = "../crates/translation_api" }
 clap = { version = "4.4.3", features = ["derive"] }
 ctrlc = { version = "3.4.1" }
+sysexits = { version = "0.7.2" }

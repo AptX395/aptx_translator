@@ -1,14 +1,22 @@
-pub fn add(left: usize, right: usize) -> usize {
-    left + right
+pub mod api;
+pub mod error;
+pub mod language;
+
+use clap::ValueEnum;
+
+#[derive(Debug, Clone)]
+#[derive(PartialEq, Eq)]
+#[derive(Hash)]
+#[derive(ValueEnum)]
+pub enum Api {
+    Baidu,
+    Youdao,
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
     #[test]
     fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
+        // TODO: Check if the translation APIs can work
     }
 }
