@@ -10,3 +10,4 @@ translation_api = { path = "../crates/translation_api" }
 clap = { version = "4.4.3", features = ["derive"] }
 ctrlc = { version = "3.4.1" }
 sysexits = { version = "0.7.2" }
+toml = { version = "0.8.2" }

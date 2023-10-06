@@ -1,24 +1,33 @@
-use std::collections::HashMap;
-use super::Translate;
+use serde::Deserialize;
+use crate::{error::Error, language::Language};
+use super::{Translate, Translation};
 
-pub struct Youdao {
-    // TODO: Implement Youdao API
+#[derive(Deserialize)]
+pub struct YoudaoApi {
     url: String,
     app_key: String,
     app_secret: String,
+    // TODO: Implement Youdao API
 }
 
-impl Youdao {
-    pub fn new(url: &str, app_key: &str, app_secret: &str) -> Self {
-        Self { url: String::from(url), app_key: String::from(app_key), app_secret: String::from(app_secret) }
+impl YoudaoApi {}
+
+impl Translate for YoudaoApi {
+    fn translate(&self, text: &str, src_lang: Language, target_lang: Language) -> Result<Box<dyn Translation>, Error> {
+        // TODO: Implement Youdao API
+
+        Ok(Box::new(YoudaoTranslation {}))
     }
 }
 
-impl Translate for Youdao {
-    fn translate(&self, _text: &str) -> Result<std::collections::HashMap<String, String>, crate::error::Error> {
-        // TODO: Implement Youdao API
-        let translate_result = HashMap::new();
+#[derive(Debug)]
+#[derive(Deserialize)]
+pub struct YoudaoTranslation {}
 
-        Ok(translate_result)
+impl Translation for YoudaoTranslation {
+    fn text(&self) -> String {
+        // TODO: Implement Youdao API
+
+        String::new()
     }
 }

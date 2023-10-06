@@ -15,3 +15,6 @@ Cargo.lock
 
 # VS Code settings
 .vscode/
+
+# Translation API Configs
+api_configs/

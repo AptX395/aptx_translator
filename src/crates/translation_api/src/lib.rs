@@ -12,11 +12,3 @@ pub enum Api {
     Baidu,
     Youdao,
 }
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn it_works() {
-        // TODO: Check if the translation APIs can work
-    }
-}

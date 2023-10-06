@@ -1,13 +1,16 @@
 mod baidu;
 mod youdao;
 
-pub use baidu::Baidu;
-pub use youdao::Youdao;
+pub use baidu::BaiduApi;
+pub use youdao::YoudaoApi;
 
-use std::collections::HashMap;
-use crate::error::Error;
+use std::fmt::Debug;
+use crate::{error::Error, language::Language};
 
 pub trait Translate {
-    // TODO: The abstract of translating text via the translation API
-    fn translate(&self, text: &str) -> Result<HashMap<String, String>, Error>;
+    fn translate(&self, text: &str, src_lang: Language, target_lang: Language) -> Result<Box<dyn Translation>, Error>;
+}
+
+pub trait Translation: Debug {
+    fn text(&self) -> String;
 }
