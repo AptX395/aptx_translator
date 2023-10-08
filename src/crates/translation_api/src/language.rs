@@ -1,6 +1,7 @@
 use clap::ValueEnum;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug)]
+#[derive(Clone)]
 #[derive(ValueEnum)]
 pub enum Language {
     Chinese,
@@ -10,8 +11,15 @@ pub enum Language {
 impl Language {
     pub fn to_baidu_param(&self) -> String {
         match self {
-            Language::Chinese => String::from("zh"),
-            Language::English => String::from("en"),
+            Self::Chinese => String::from("zh"),
+            Self::English => String::from("en"),
+        }
+    }
+
+    pub fn to_youdao_param(&self) -> String {
+        match self {
+            Self::Chinese => String::from("zh-CHS"),
+            Self::English => String::from("en"),
         }
     }
 }

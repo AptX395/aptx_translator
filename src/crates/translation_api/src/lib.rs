@@ -4,10 +4,11 @@ pub mod language;
 
 use clap::ValueEnum;
 
-#[derive(Debug, Clone)]
-#[derive(PartialEq, Eq)]
-#[derive(Hash)]
+#[derive(Debug)]
+#[derive(Clone)]
+#[derive(Eq, Hash, PartialEq)]
 #[derive(ValueEnum)]
+#[derive(strum::Display)]
 pub enum Api {
     Baidu,
     Youdao,
