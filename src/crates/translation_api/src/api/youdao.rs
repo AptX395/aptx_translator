@@ -4,8 +4,13 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use uuid::Uuid;
 
-use crate::{Api, error::{Error, ErrCode, DESERIALIZE_RESPONSE_ERR_MSG}, language::Language};
 use super::{DisplayTranslation, Translate};
+
+use crate::{
+    error::{ErrCode, Error, DESERIALIZE_RESPONSE_ERR_MSG},
+    language::Language,
+    Api,
+};
 
 #[derive(Debug, Deserialize)]
 pub struct YoudaoApi {
@@ -16,11 +21,7 @@ pub struct YoudaoApi {
 
 impl YoudaoApi {
     fn request(&self, params: YoudaoParams) -> Result<String, ReqwestErr> {
-        let response_text = Client::new()
-            .post(&self.url)
-            .form(&params)
-            .send()?
-            .text()?;
+        let response_text = Client::new().post(&self.url).form(&params).send()?.text()?;
 
         Ok(response_text)
     }
@@ -28,7 +29,7 @@ impl YoudaoApi {
     fn parse_response(&self, response: &str) -> Result<Box<dyn DisplayTranslation>, Error> {
         let translation_response_result: Result<YoudaoTranslationResponse, serde_json::Error> =
             serde_json::from_str(response);
-        
+
         if let Ok(translation_response) = translation_response_result {
             return Ok(Box::new(translation_response));
         }
@@ -37,12 +38,7 @@ impl YoudaoApi {
             serde_json::from_str(response);
 
         if let Ok(err_response) = err_response_result {
-            let api_err = Error::new(
-                Api::Youdao,
-                ErrCode::ApiError,
-                &err_response.error_code,
-            );
-
+            let api_err = Error::new(Api::Youdao, ErrCode::ApiError, &err_response.error_code);
             return Err(api_err);
         }
 
@@ -63,13 +59,8 @@ impl Translate for YoudaoApi {
         src_lang: &Language,
         target_lang: &Language,
     ) -> Result<Box<dyn DisplayTranslation>, Error> {
-        let params = YoudaoParams::new(
-            text,
-            src_lang,
-            target_lang,
-            &self.app_key,
-            &self.app_secret,
-        );
+        let params =
+            YoudaoParams::new(text, src_lang, target_lang, &self.app_key, &self.app_secret);
 
         let request_result = self.request(params);
 
@@ -82,7 +73,7 @@ impl Translate for YoudaoApi {
 
             return Err(request_err);
         };
-        
+
         self.parse_response(&response_text)
     }
 }
@@ -103,13 +94,7 @@ struct YoudaoParams {
 }
 
 impl YoudaoParams {
-    pub fn new(
-        q: &str,
-        from: &Language,
-        to: &Language,
-        app_key: &str,
-        app_secret: &str,
-    ) -> Self {
+    pub fn new(q: &str, from: &Language, to: &Language, app_key: &str, app_secret: &str) -> Self {
         let input = Self::generate_input(q);
         let salt = Uuid::new_v4().to_string();
         let cur_time = Utc::now().timestamp().to_string();
@@ -174,10 +159,10 @@ pub struct YoudaoTranslationResponse {
 
 impl std::fmt::Display for YoudaoTranslationResponse {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let translation_str: String = self.translation.iter()
-            .map(|x| {
-                format!("{}\n", x)
-            })
+        let translation_str: String = self
+            .translation
+            .iter()
+            .map(|x| format!("{}\n", x))
             .collect();
 
         write!(f, "{}", translation_str)

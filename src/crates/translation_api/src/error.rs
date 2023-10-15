@@ -13,7 +13,11 @@ pub struct Error {
 
 impl Error {
     pub fn new(api: Api, code: ErrCode, info: &str) -> Self {
-        Self { api, code, info: String::from(info) }
+        Self {
+            api,
+            code,
+            info: String::from(info),
+        }
     }
 }
 

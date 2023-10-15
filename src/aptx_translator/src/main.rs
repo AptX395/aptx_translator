@@ -3,16 +3,16 @@ use std::{fs, io, process};
 use clap::Parser;
 use sysexits::ExitCode;
 
-use translation_api::{Api, api::*, language::Language};
+use translation_api::{api::*, language::Language, Api};
 
-const INPUT_HINT: &str = "[Text]: ";
+const INPUT_HINT: &str = "[Text]:";
 const QUIT_HINT: &str = "[Quit...]";
 
 #[derive(Debug, Parser)]
 #[command(
     author,
     version,
-    about = "A lightweight translator written in pure Rust, supports multiple translation APIs",
+    about = "A lightweight translator written in pure Rust, supports multiple translation APIs"
 )]
 struct Args {
     #[arg(long, short, name = "API name")]
@@ -29,7 +29,8 @@ fn main() {
     ctrlc::set_handler(|| {
         println!("{}", QUIT_HINT);
         process::exit(ExitCode::Ok.into());
-    }).unwrap();
+    })
+    .unwrap();
 
     let args = Args::parse();
     let translation_api = load_translation_api(&args.config_path, &args.api).unwrap();
@@ -44,19 +45,14 @@ fn main() {
         }
 
         let text = buf.trim();
-
-        let translate_result = translation_api.translate(
-            text,
-            &args.src_lang,
-            &args.target_lang,
-        );
+        let translate_result = translation_api.translate(text, &args.src_lang, &args.target_lang);
 
         if let Ok(translation) = translate_result {
-            print!("{}", translation);
+            print!("[{}]:\n{}", args.api, translation);
         } else {
             eprintln!("{}", translate_result.unwrap_err());
         }
-    };
+    }
 }
 
 fn load_translation_api(
@@ -66,7 +62,7 @@ fn load_translation_api(
     let file_content = fs::read_to_string(config_path)?;
 
     match api {
-        Api::Baidu =>  {
+        Api::Baidu => {
             let baidu_api: BaiduApi = toml::from_str(&file_content)?;
 
             Ok(Box::new(baidu_api))
