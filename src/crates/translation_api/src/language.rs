@@ -1,8 +1,6 @@
 use clap::ValueEnum;
 
-#[derive(Debug)]
-#[derive(Clone)]
-#[derive(ValueEnum)]
+#[derive(Clone, Debug, ValueEnum)]
 pub enum Language {
     Chinese,
     English,

@@ -3,10 +3,11 @@ use reqwest::{blocking::Client, Error as ReqwestErr};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use uuid::Uuid;
-use crate::{error::{Error, ErrorCode}, language::Language, Api};
-use super::{Translate, DisplayTranslation};
 
-#[derive(Deserialize)]
+use crate::{Api, error::{Error, ErrCode, DESERIALIZE_RESPONSE_ERR_MSG}, language::Language};
+use super::{DisplayTranslation, Translate};
+
+#[derive(Debug, Deserialize)]
 pub struct YoudaoApi {
     url: String,
     app_key: String,
@@ -23,33 +24,66 @@ impl YoudaoApi {
 
         Ok(response_text)
     }
+
+    fn parse_response(&self, response: &str) -> Result<Box<dyn DisplayTranslation>, Error> {
+        let translation_response_result: Result<YoudaoTranslationResponse, serde_json::Error> =
+            serde_json::from_str(response);
+        
+        if let Ok(translation_response) = translation_response_result {
+            return Ok(Box::new(translation_response));
+        }
+
+        let err_response_result: Result<YoudaoErrResponse, serde_json::Error> =
+            serde_json::from_str(response);
+
+        if let Ok(err_response) = err_response_result {
+            let api_err = Error::new(
+                Api::Youdao,
+                ErrCode::ApiError,
+                &err_response.error_code,
+            );
+
+            return Err(api_err);
+        }
+
+        let deserialize_err = Error::new(
+            Api::Youdao,
+            ErrCode::DeserializeError,
+            DESERIALIZE_RESPONSE_ERR_MSG,
+        );
+
+        Err(deserialize_err)
+    }
 }
 
 impl Translate for YoudaoApi {
     fn translate(
         &self,
-        content: &str,
+        text: &str,
         src_lang: &Language,
         target_lang: &Language,
     ) -> Result<Box<dyn DisplayTranslation>, Error> {
-        let params = YoudaoParams::new(content, src_lang, target_lang, &self.app_key, &self.app_secret);
+        let params = YoudaoParams::new(
+            text,
+            src_lang,
+            target_lang,
+            &self.app_key,
+            &self.app_secret,
+        );
+
         let request_result = self.request(params);
 
         let Ok(response_text) = request_result else {
-            let err_str = request_result.unwrap_err().to_string();
-            let request_err = Error::new(Api::Youdao, ErrorCode::RequestError, &err_str);
+            let request_err = Error::new(
+                Api::Youdao,
+                ErrCode::RequestError,
+                &request_result.unwrap_err().to_string(),
+            );
+
             return Err(request_err);
         };
         
-        let deserialize_result: Result<YoudaoResponse, serde_json::Error> = serde_json::from_str(&response_text);
-        
-        let Ok(response) = deserialize_result else {
-            let err_str = deserialize_result.unwrap_err().to_string();
-            let api_err = Error::new(Api::Youdao, ErrorCode::DeserializeError, &err_str);
-            return Err(api_err);
-        };
-
-        Ok(Box::new(response))
+        self.parse_response(&response_text)
     }
 }
 
@@ -69,7 +103,13 @@ struct YoudaoParams {
 }
 
 impl YoudaoParams {
-    pub fn new(q: &str, from: &Language, to: &Language, app_key: &str, app_secret: &str) -> Self {
+    pub fn new(
+        q: &str,
+        from: &Language,
+        to: &Language,
+        app_key: &str,
+        app_secret: &str,
+    ) -> Self {
         let input = Self::generate_input(q);
         let salt = Uuid::new_v4().to_string();
         let cur_time = Utc::now().timestamp().to_string();
@@ -91,28 +131,33 @@ impl YoudaoParams {
     }
 
     fn generate_input(q: &str) -> String {
-        let length = q.len();
+        let length = q.chars().count();
 
         if length <= 20 {
-            return String::from(q);
+            String::from(q)
+        } else {
+            format!(
+                "{}{}{}",
+                q.chars().take(10).collect::<String>(),
+                length,
+                q.chars().skip(length - 10).collect::<String>(),
+            )
         }
-
-        format!("{}{}{}", &q[..10], length, &q[(length - 10)..])
     }
 }
 
-#[derive(Debug)]
-#[derive(Deserialize)]
-pub struct YoudaoResponse {
+#[allow(dead_code)]
+#[derive(Debug, Deserialize)]
+pub struct YoudaoTranslationResponse {
     #[serde(rename(deserialize = "errorCode"))]
     error_code: String,
     l: String,
-    translation: Option<Vec<String>>,
-    query: Option<String>,
+    query: String,
+    translation: Vec<String>,
     #[serde(rename(deserialize = "speakUrl"))]
-    speak_url: Option<String>,
+    speak_url: String,
     #[serde(rename(deserialize = "tSpeakUrl"))]
-    t_speak_url: Option<String>,
+    t_speak_url: String,
     basic: Option<YoudaoBasic>,
     web: Option<Vec<YoudaoWeb>>,
     dict: Option<YoudaoDict>,
@@ -120,20 +165,16 @@ pub struct YoudaoResponse {
     web_dict: Option<YoudaoWebDict>,
     return_phrase: Option<Vec<String>>,
     #[serde(rename(deserialize = "requestId"))]
-    request_id: Option<String>,
+    request_id: String,
     #[serde(rename(deserialize = "isWord"))]
-    is_word: Option<bool>,
+    is_word: bool,
     #[serde(rename(deserialize = "mTerminalDict"))]
-    m_terminal_dict: YoudaoMTerminalDict,
+    m_terminal_dict: Option<YoudaoMTerminalDict>,
 }
 
-impl std::fmt::Display for YoudaoResponse {
+impl std::fmt::Display for YoudaoTranslationResponse {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let Some(translation) = &self.translation else {
-            return write!(f, "[None...]");
-        };
-
-        let translation_str: String = translation.iter()
+        let translation_str: String = self.translation.iter()
             .map(|x| {
                 format!("{}\n", x)
             })
@@ -143,10 +184,10 @@ impl std::fmt::Display for YoudaoResponse {
     }
 }
 
-impl DisplayTranslation for YoudaoResponse {}
+impl DisplayTranslation for YoudaoTranslationResponse {}
 
-#[derive(Debug)]
-#[derive(Deserialize)]
+#[allow(dead_code)]
+#[derive(Debug, Deserialize)]
 struct YoudaoBasic {
     explains: Vec<String>,
     phonetic: Option<String>,
@@ -162,40 +203,50 @@ struct YoudaoBasic {
     wfs: Option<Vec<YoudaoWFContainer>>,
 }
 
-#[derive(Debug)]
-#[derive(Deserialize)]
+#[allow(dead_code)]
+#[derive(Debug, Deserialize)]
 struct YoudaoWeb {
     key: String,
     value: Vec<String>,
 }
 
-#[derive(Debug)]
-#[derive(Deserialize)]
+#[allow(dead_code)]
+#[derive(Debug, Deserialize)]
 struct YoudaoDict {
     url: String,
 }
 
-#[derive(Debug)]
-#[derive(Deserialize)]
+#[allow(dead_code)]
+#[derive(Debug, Deserialize)]
 struct YoudaoWebDict {
     url: String,
 }
 
-#[derive(Debug)]
-#[derive(Deserialize)]
+#[allow(dead_code)]
+#[derive(Debug, Deserialize)]
 struct YoudaoMTerminalDict {
     url: String,
 }
 
-#[derive(Debug)]
-#[derive(Deserialize)]
+#[allow(dead_code)]
+#[derive(Debug, Deserialize)]
 struct YoudaoWFContainer {
     wf: YoudaoWF,
 }
 
-#[derive(Debug)]
-#[derive(Deserialize)]
+#[allow(dead_code)]
+#[derive(Debug, Deserialize)]
 struct YoudaoWF {
     name: String,
     value: String,
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Deserialize)]
+struct YoudaoErrResponse {
+    #[serde(rename(deserialize = "errorCode"))]
+    error_code: String,
+    l: String,
+    #[serde(rename(deserialize = "requestId"))]
+    request_id: String,
 }

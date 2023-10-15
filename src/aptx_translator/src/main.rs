@@ -1,11 +1,19 @@
 use std::{fs, io, process};
+
 use clap::Parser;
 use sysexits::ExitCode;
-use translation_api::{api::*, Api, language::Language};
 
-#[derive(Debug)]
-#[derive(Parser)]
-#[command(author, version, about = "A lightweight translator write in pure Rust, supports multiple translation APIs")]
+use translation_api::{Api, api::*, language::Language};
+
+const INPUT_HINT: &str = "[Text]: ";
+const QUIT_HINT: &str = "[Quit...]";
+
+#[derive(Debug, Parser)]
+#[command(
+    author,
+    version,
+    about = "A lightweight translator written in pure Rust, supports multiple translation APIs",
+)]
 struct Args {
     #[arg(long, short, name = "API name")]
     api: Api,
@@ -19,8 +27,8 @@ struct Args {
 
 fn main() {
     ctrlc::set_handler(|| {
-        println!("\n[Quit...]");
-        process::exit(ExitCode::Ok as i32);
+        println!("{}", QUIT_HINT);
+        process::exit(ExitCode::Ok.into());
     }).unwrap();
 
     let args = Args::parse();
@@ -28,47 +36,45 @@ fn main() {
 
     loop {
         let mut buf = String::new();
-        println!("[Content]:");
+        println!("{}", INPUT_HINT);
 
-        if let Err(_) = io::stdin().read_line(&mut buf) {
+        if let Err(read_line_err) = io::stdin().read_line(&mut buf) {
+            eprintln!("{}", read_line_err);
             continue;
         }
 
-        let content = buf.trim();
-        let translate_result = translation_api.translate(content, &args.src_lang, &args.target_lang);
+        let text = buf.trim();
 
-        let Ok(translation) = translate_result else {
-            eprintln!(
-                "{}",
-                translate_result.unwrap_err()
-                    .to_string(),
-            );
+        let translate_result = translation_api.translate(
+            text,
+            &args.src_lang,
+            &args.target_lang,
+        );
 
-            continue;
-        };
-
-        println!("\n[{} translation]:\n{}", args.api, translation.to_string());
-    }
+        if let Ok(translation) = translate_result {
+            print!("{}", translation);
+        } else {
+            eprintln!("{}", translate_result.unwrap_err());
+        }
+    };
 }
 
-fn load_translation_api(config_path: &str, api: &Api) -> Option<Box<dyn Translate>> {
-    let read_file_result = fs::read_to_string(config_path);
-
-    let Ok(file_content) = read_file_result else {
-        eprintln!("{}", read_file_result.unwrap_err().to_string());
-        return None;
-    };
+fn load_translation_api(
+    config_path: &str,
+    api: &Api,
+) -> Result<Box<dyn Translate>, Box<dyn std::error::Error>> {
+    let file_content = fs::read_to_string(config_path)?;
 
     match api {
         Api::Baidu =>  {
-            let baidu_api: BaiduApi = toml::from_str(&file_content).unwrap();
+            let baidu_api: BaiduApi = toml::from_str(&file_content)?;
 
-            Some(Box::new(baidu_api))
+            Ok(Box::new(baidu_api))
         }
         Api::Youdao => {
-            let youdao_api: YoudaoApi = toml::from_str(&file_content).unwrap();
+            let youdao_api: YoudaoApi = toml::from_str(&file_content)?;
 
-            Some(Box::new(youdao_api))
+            Ok(Box::new(youdao_api))
         }
     }
 }

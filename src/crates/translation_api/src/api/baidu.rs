@@ -1,11 +1,11 @@
 use md5::{Digest, Md5};
 use reqwest::{blocking::Client, Error as ReqwestErr};
 use serde::{Deserialize, Serialize};
-use crate::{Api, error::{Error, ErrorCode}, language::Language};
-use super::{Translate, DisplayTranslation};
 
-#[derive(Debug)]
-#[derive(Deserialize)]
+use crate::{Api, error::{DESERIALIZE_RESPONSE_ERR_MSG, Error, ErrCode}, language::Language};
+use super::{DisplayTranslation, Translate};
+
+#[derive(Debug, Deserialize)]
 pub struct BaiduApi {
     url: String,
     app_id: String,
@@ -22,33 +22,66 @@ impl BaiduApi {
 
         Ok(response_text)
     }
+
+    fn parse_response(&self, response: &str) -> Result<Box<dyn DisplayTranslation>, Error> {
+        let translation_response_result: Result<BaiduTranslationResponse, serde_json::Error> =
+            serde_json::from_str(response);
+
+        if let Ok(translation_response) = translation_response_result {
+            return Ok(Box::new(translation_response));
+        }
+        
+        let err_response_result: Result<BaiduErrResponse, serde_json::Error> =
+            serde_json::from_str(response);
+
+        if let Ok(err_response) = err_response_result {
+            let api_err = Error::new(
+                Api::Baidu,
+                ErrCode::ApiError,
+                &err_response.error_msg,
+            );
+
+            return Err(api_err);
+        }
+
+        let deserialize_err = Error::new(
+            Api::Baidu,
+            ErrCode::DeserializeError,
+            DESERIALIZE_RESPONSE_ERR_MSG,
+        );
+
+        Err(deserialize_err)
+    }
 }
 
 impl Translate for BaiduApi {
     fn translate(
         &self,
-        content: &str,
+        text: &str,
         src_lang: &Language,
         target_lang: &Language,
     ) -> Result<Box<dyn DisplayTranslation>, Error> {
-        let params = BaiduParams::new(content, src_lang, target_lang, &self.app_id, &self.secret);
+        let params = BaiduParams::new(
+            text,
+            src_lang,
+            target_lang,
+            &self.app_id,
+            &self.secret,
+        );
+
         let request_result = self.request(params);
         
         let Ok(response_text) = request_result else {
-            let err_str = request_result.unwrap_err().to_string();
-            let request_err = Error::new(Api::Baidu, ErrorCode::RequestError, &err_str);
+            let request_err = Error::new(
+                Api::Baidu,
+                ErrCode::RequestError,
+                &request_result.unwrap_err().to_string(),
+            );
+
             return Err(request_err);
         };
 
-        let deserialize_result: Result<BaiduResponse, serde_json::Error> = serde_json::from_str(&response_text);
-
-        let Ok(response) = deserialize_result else {
-            let err_str = deserialize_result.unwrap_err().to_string();
-            let api_err = Error::new(Api::Baidu, ErrorCode::DeserializeError, &err_str);
-            return Err(api_err);
-        };
-
-        Ok(Box::new(response))
+        self.parse_response(&response_text)
     }
 }
 
@@ -64,7 +97,13 @@ struct BaiduParams {
 }
 
 impl BaiduParams {
-    pub fn new(q: &str, from: &Language, to: &Language, app_id: &str, secret: &str) -> Self {
+    pub fn new(
+        q: &str,
+        from: &Language,
+        to: &Language,
+        app_id: &str,
+        secret: &str,
+    ) -> Self {
         let salt = rand::random::<i32>().to_string();
         let sign_str = format!("{}{}{}{}", app_id, q, salt, secret);
         let mut hasher = Md5::new();
@@ -82,15 +121,15 @@ impl BaiduParams {
     }
 }
 
-#[derive(Debug)]
-#[derive(Deserialize)]
-pub struct BaiduResponse {
+#[allow(dead_code)]
+#[derive(Debug, Deserialize)]
+pub struct BaiduTranslationResponse {
     from: String,
     to: String,
     trans_result: Vec<BaiduTransResult>,
 }
 
-impl std::fmt::Display for BaiduResponse {
+impl std::fmt::Display for BaiduTranslationResponse {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let translation_str: String = self.trans_result.iter()
             .map(|x| {
@@ -102,11 +141,18 @@ impl std::fmt::Display for BaiduResponse {
     }
 }
 
-impl DisplayTranslation for BaiduResponse {}
+impl DisplayTranslation for BaiduTranslationResponse {}
 
-#[derive(Debug)]
-#[derive(Deserialize)]
-pub struct BaiduTransResult {
+#[allow(dead_code)]
+#[derive(Debug, Deserialize)]
+struct BaiduTransResult {
     src: String,
     dst: String,
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Deserialize)]
+struct BaiduErrResponse {
+    error_code: String,
+    error_msg: String,
 }

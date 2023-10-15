@@ -6,10 +6,10 @@ pub use youdao::YoudaoApi;
 
 use crate::{error::Error, language::Language};
 
-pub trait Translate {
+pub trait Translate: std::fmt::Debug {
     fn translate(
         &self,
-        content: &str,
+        text: &str,
         src_lang: &Language,
         target_lang: &Language,
     ) -> Result<Box<dyn DisplayTranslation>, Error>;
