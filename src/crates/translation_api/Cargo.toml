@@ -6,13 +6,13 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-chrono = { version = "0.4.31" }
-clap = { version = "4.4.3", features = ["derive"] }
-md-5 = { version = "0.10.6" }
-rand = { version = "0.8.5" }
+chrono = "0.4.31"
+clap = { version = "4.4.8", features = ["derive"] }
+md-5 = "0.10.6"
+rand = "0.8.5"
 reqwest = { version = "0.11.22", features = ["blocking"] }
-serde = { version = "1.0.188", features = ["derive"] }
-serde_json = { version = "1.0.107" }
-sha2 = { version = "0.10.8" }
+serde = { version = "1.0.192", features = ["derive"] }
+serde_json = "1.0.108"
+sha2 = "0.10.8"
 strum = { version = "0.25.0", features = ["derive"] }
-uuid = { version = "1.4.1", features = ["v4"] }
+uuid = { version = "1.5.0", features = ["v4"] }
